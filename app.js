@@ -175,6 +175,28 @@ function formatTimeFromDigits(input) {
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
 }
 
+function normalizeTimeInput(value) {
+  const cleaned = String(value || '').trim();
+  if (!cleaned) return '';
+
+  if (cleaned.includes(':')) {
+    const parts = cleaned.split(':').map((part) => part.replace(/\D/g, ''));
+    if (parts.length === 2) {
+      const mm = parts[0].slice(0, 2).padStart(2, '0');
+      const ss = parts[1].slice(0, 2).padStart(2, '0');
+      return `${mm}:${ss}`;
+    }
+    if (parts.length === 3) {
+      const hh = parts[0].slice(0, 2).padStart(2, '0');
+      const mm = parts[1].slice(0, 2).padStart(2, '0');
+      const ss = parts[2].slice(0, 2).padStart(2, '0');
+      return `${hh}:${mm}:${ss}`;
+    }
+  }
+
+  return formatTimeFromDigits(cleaned);
+}
+
 function formatSeconds(totalSeconds) {
   if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return '--:--';
   const safe = Math.round(totalSeconds);
@@ -299,14 +321,22 @@ function renderWeekTrainings() {
     km.value = entry.km || '';
 
     const time = bindField(card, '.field-time', 'input', (event) => {
-      const formattedTime = formatTimeFromDigits(event.target.value);
+      const formattedTime = normalizeTimeInput(event.target.value);
       event.target.value = formattedTime;
       state.data[key].time = formattedTime;
       updatePace(card, key);
       debounceSave();
       renderSummaries();
     });
-    time.value = formatTimeFromDigits(entry.time || '');
+    time.addEventListener('blur', () => {
+      const formattedTime = normalizeTimeInput(time.value);
+      time.value = formattedTime;
+      state.data[key].time = formattedTime;
+      updatePace(card, key);
+      debounceSave();
+      renderSummaries();
+    });
+    time.value = normalizeTimeInput(entry.time || '');
 
     const bpm = bindField(card, '.field-bpm', 'input', (event) => {
       state.data[key].bpm = event.target.value;
@@ -455,6 +485,12 @@ function setupEvents() {
 
   el.importConfirm.addEventListener('click', handleImportConfirm);
   el.importCancel.addEventListener('click', () => el.importDialog.close());
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== STORAGE_KEY) return;
+    loadState();
+    render();
+  });
 }
 
 function registerServiceWorker() {
