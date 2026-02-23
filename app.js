@@ -77,6 +77,8 @@ const state = {
   saveTimer: null,
 };
 
+let chartInstance = null;
+
 const el = {
   weekSelect: document.querySelector('#week-select'),
   overallSummary: document.querySelector('#overall-summary'),
@@ -91,6 +93,9 @@ const el = {
   importFile: document.querySelector('#import-file'),
   importCancel: document.querySelector('#import-cancel'),
   importConfirm: document.querySelector('#import-confirm'),
+  evolutionMetricSelect: document.querySelector('#evolution-metric'),
+  evolutionCanvas: document.querySelector('#evolution-chart'),
+  evolutionEmpty: document.querySelector('#evolution-empty'),
 };
 
 function createTrainingKey(week, trainingId) {
@@ -234,6 +239,174 @@ function formatPace(seconds, km) {
   return `${paceMin}:${String(paceRemainSec).padStart(2, '0')}/km`;
 }
 
+function formatPaceSeconds(paceSeconds) {
+  if (!Number.isFinite(paceSeconds) || paceSeconds <= 0) return '--:--/km';
+  const safe = Math.round(paceSeconds);
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}/km`;
+}
+
+function getWeekKey(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const isoDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const isoDay = isoDate.getUTCDay() || 7;
+  isoDate.setUTCDate(isoDate.getUTCDate() + 4 - isoDay);
+
+  const yearStart = new Date(Date.UTC(isoDate.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((isoDate - yearStart) / 86400000) + 1) / 7);
+
+  return `${isoDate.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+function getAllEntriesAsList() {
+  return Object.values(state.data)
+    .map((entry) => {
+      const km = Number(entry.km);
+      const seconds = parseTimeToSeconds(entry.time);
+      const hasValidKm = Number.isFinite(km) && km > 0;
+      return {
+        date: typeof entry.date === 'string' ? entry.date : '',
+        km,
+        seconds,
+        paceSec: hasValidKm && Number.isFinite(seconds) && seconds > 0 ? seconds / km : null,
+        done: Boolean(entry.done),
+        weekKey: getWeekKey(entry.date),
+      };
+    })
+    .filter((entry) => entry.date)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function buildSeries(metric) {
+  const entries = getAllEntriesAsList();
+
+  if (metric === 'pace') {
+    const valid = entries.filter((entry) => entry.km > 0 && Number.isFinite(entry.paceSec));
+    return {
+      labels: valid.map((entry) => entry.date),
+      values: valid.map((entry) => entry.paceSec),
+      chartType: 'line',
+      datasetLabel: 'Pace (min/km)',
+      yLabel: 'Pace',
+    };
+  }
+
+  if (metric === 'distance') {
+    const valid = entries.filter((entry) => entry.km > 0);
+    return {
+      labels: valid.map((entry) => entry.date),
+      values: valid.map((entry) => entry.km),
+      chartType: 'bar',
+      datasetLabel: 'Distância (km)',
+      yLabel: 'Distância (km)',
+    };
+  }
+
+  const grouped = new Map();
+  entries.forEach((entry) => {
+    if (!entry.weekKey || !(entry.km > 0)) return;
+    const previous = grouped.get(entry.weekKey) || 0;
+    grouped.set(entry.weekKey, previous + entry.km);
+  });
+
+  const labels = Array.from(grouped.keys()).sort((a, b) => a.localeCompare(b));
+  const values = labels.map((label) => Number(grouped.get(label).toFixed(2)));
+
+  return {
+    labels,
+    values,
+    chartType: 'bar',
+    datasetLabel: 'Volume semanal (km)',
+    yLabel: 'Volume semanal (km)',
+  };
+}
+
+function createOrUpdateChart(series, metric) {
+  if (!el.evolutionCanvas || typeof Chart === 'undefined') return;
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+  }
+
+  const isPace = metric === 'pace';
+
+  chartInstance = new Chart(el.evolutionCanvas, {
+    type: series.chartType,
+    data: {
+      labels: series.labels,
+      datasets: [
+        {
+          label: series.datasetLabel,
+          data: series.values,
+          borderColor: '#1d4ed8',
+          backgroundColor: series.chartType === 'bar' ? 'rgba(29, 78, 216, 0.3)' : 'rgba(29, 78, 216, 0.2)',
+          borderWidth: 2,
+          tension: 0.3,
+          pointRadius: 3,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      scales: {
+        y: {
+          title: {
+            display: true,
+            text: series.yLabel,
+          },
+          ticks: {
+            callback(value) {
+              if (isPace) return formatPaceSeconds(Number(value));
+              return `${Number(value).toFixed(1)} km`;
+            },
+          },
+        },
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const value = context.raw;
+              if (isPace) return `${series.datasetLabel}: ${formatPaceSeconds(Number(value))}`;
+              return `${series.datasetLabel}: ${Number(value).toFixed(2)} km`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function renderEvolution() {
+  const metric = el.evolutionMetricSelect?.value || 'pace';
+  const series = buildSeries(metric);
+  const hasData = series.labels.length > 0 && series.values.length > 0;
+
+  if (!hasData) {
+    el.evolutionEmpty.hidden = false;
+    el.evolutionCanvas.hidden = true;
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+    return;
+  }
+
+  el.evolutionEmpty.hidden = true;
+  el.evolutionCanvas.hidden = false;
+  createOrUpdateChart(series, metric);
+}
+
 function sumWeek(week) {
   let totalKm = 0;
   let totalSeconds = 0;
@@ -319,6 +492,7 @@ function renderWeekTrainings() {
     const date = bindField(card, '.field-date', 'input', (event) => {
       state.data[key].date = event.target.value;
       debounceSave();
+      renderEvolution();
     });
     date.value = entry.date || '';
 
@@ -327,6 +501,7 @@ function renderWeekTrainings() {
       updatePace(card, key);
       debounceSave();
       renderSummaries();
+      renderEvolution();
     });
     km.value = entry.km || '';
 
@@ -337,6 +512,7 @@ function renderWeekTrainings() {
       updatePace(card, key);
       debounceSave();
       renderSummaries();
+      renderEvolution();
     };
 
     const time = bindField(card, '.field-time', 'input', (event) => {
@@ -348,6 +524,7 @@ function renderWeekTrainings() {
       updatePace(card, key);
       debounceSave();
       renderSummaries();
+      renderEvolution();
     });
     time.addEventListener('blur', persistNormalizedTime);
     time.addEventListener('change', persistNormalizedTime);
@@ -358,6 +535,7 @@ function renderWeekTrainings() {
       if (event.target.checked) persistNormalizedTime();
       debounceSave();
       renderSummaries();
+      renderEvolution();
     });
     done.checked = Boolean(entry.done);
 
@@ -438,6 +616,7 @@ function applyImportedPayload(payload) {
   state.data = next;
   saveState();
   render();
+  renderEvolution();
   alert('Backup importado com sucesso.');
 }
 
@@ -494,6 +673,7 @@ function handleResetAll() {
   state.data = createInitialData();
   saveState();
   render();
+  renderEvolution();
   refreshServiceWorkerCache();
 }
 
@@ -516,6 +696,10 @@ function setupEvents() {
   el.weekSelect.addEventListener('change', (event) => {
     state.selectedWeek = Number(event.target.value);
     render();
+  });
+
+  el.evolutionMetricSelect.addEventListener('change', () => {
+    renderEvolution();
   });
 
   el.exportBtn.addEventListener('click', handleExport);
@@ -548,6 +732,7 @@ function render() {
   renderWeekSelector();
   renderSummaries();
   renderWeekTrainings();
+  renderEvolution();
 }
 
 function init() {

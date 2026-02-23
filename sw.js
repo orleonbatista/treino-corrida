@@ -1,5 +1,13 @@
-const CACHE_NAME = 'treino-corrida-v2';
-const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icon.svg'];
+const CACHE_NAME = 'treino-corrida-v3';
+const ASSETS = [
+  './',
+  './index.html',
+  './styles.css',
+  './app.js',
+  './manifest.webmanifest',
+  './icon.svg',
+  './vendor/chart.umd.min.js',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
@@ -15,9 +23,14 @@ self.addEventListener('activate', (event) => {
 
 function isAppShellRequest(requestUrl) {
   const pathname = requestUrl.pathname;
-  return pathname.endsWith('/') || pathname.endsWith('/index.html') || pathname.endsWith('/app.js') || pathname.endsWith('/styles.css');
+  return (
+    pathname.endsWith('/')
+    || pathname.endsWith('/index.html')
+    || pathname.endsWith('/app.js')
+    || pathname.endsWith('/styles.css')
+    || pathname.endsWith('/vendor/chart.umd.min.js')
+  );
 }
-
 
 self.addEventListener('message', (event) => {
   if (!event.data || event.data.type !== 'REFRESH_CACHE') return;

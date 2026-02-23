@@ -91,6 +91,23 @@ textarea {
   background: #fff;
 }
 
+.chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  margin-top: 10px;
+}
+
+.chart-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.muted,
+#evolution-empty {
+  color: var(--muted);
+}
+
 .training-title {
   margin: 0 0 8px;
   font-size: 1.05rem;
