@@ -18,6 +18,28 @@ function isAppShellRequest(requestUrl) {
   return pathname.endsWith('/') || pathname.endsWith('/index.html') || pathname.endsWith('/app.js') || pathname.endsWith('/styles.css');
 }
 
+
+self.addEventListener('message', (event) => {
+  if (!event.data || event.data.type !== 'REFRESH_CACHE') return;
+
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(
+        ASSETS.map((asset) =>
+          fetch(asset, { cache: 'no-store' })
+            .then((response) => {
+              if (response && response.ok) {
+                return cache.put(asset, response.clone());
+              }
+              return null;
+            })
+            .catch(() => null)
+        )
+      )
+    )
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
