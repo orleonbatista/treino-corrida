@@ -139,6 +139,12 @@ function parseTimeToSeconds(timeText) {
   const cleaned = timeText.trim();
   if (!cleaned) return null;
 
+  if (!cleaned.includes(':')) {
+    const normalized = normalizeTimeInput(cleaned);
+    if (!normalized || normalized === cleaned) return null;
+    return parseTimeToSeconds(normalized);
+  }
+
   const parts = cleaned.split(':').map((part) => Number(part));
   if (parts.some((part) => Number.isNaN(part) || part < 0)) return null;
 
@@ -195,6 +201,17 @@ function normalizeTimeInput(value) {
   }
 
   return formatTimeFromDigits(cleaned);
+}
+
+function sanitizeTimeDraft(value) {
+  const cleaned = String(value || '').trim();
+  if (!cleaned) return '';
+
+  if (cleaned.includes(':')) {
+    return cleaned.replace(/[^\d:]/g, '').replace(/:{2,}/g, ':').slice(0, 8);
+  }
+
+  return cleaned.replace(/\D/g, '').slice(0, 6);
 }
 
 function formatSeconds(totalSeconds) {
@@ -320,22 +337,27 @@ function renderWeekTrainings() {
     });
     km.value = entry.km || '';
 
-    const time = bindField(card, '.field-time', 'input', (event) => {
-      const formattedTime = normalizeTimeInput(event.target.value);
-      event.target.value = formattedTime;
-      state.data[key].time = formattedTime;
-      updatePace(card, key);
-      debounceSave();
-      renderSummaries();
-    });
-    time.addEventListener('blur', () => {
+    const persistNormalizedTime = () => {
       const formattedTime = normalizeTimeInput(time.value);
       time.value = formattedTime;
       state.data[key].time = formattedTime;
       updatePace(card, key);
       debounceSave();
       renderSummaries();
+    };
+
+    const time = bindField(card, '.field-time', 'input', (event) => {
+      const draft = sanitizeTimeDraft(event.target.value);
+      const shouldNormalizeNow = /^\d{4,6}$/.test(draft);
+      const nextValue = shouldNormalizeNow ? normalizeTimeInput(draft) : draft;
+      event.target.value = nextValue;
+      state.data[key].time = nextValue;
+      updatePace(card, key);
+      debounceSave();
+      renderSummaries();
     });
+    time.addEventListener('blur', persistNormalizedTime);
+    time.addEventListener('change', persistNormalizedTime);
     time.value = normalizeTimeInput(entry.time || '');
 
     const bpm = bindField(card, '.field-bpm', 'input', (event) => {
@@ -496,9 +518,12 @@ function setupEvents() {
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((error) => {
-      console.warn('Falha ao registrar SW', error);
-    });
+    navigator.serviceWorker
+      .register('./sw.js', { updateViaCache: 'none' })
+      .then((registration) => registration.update().catch(() => {}))
+      .catch((error) => {
+        console.warn('Falha ao registrar SW', error);
+      });
   });
 }
 
