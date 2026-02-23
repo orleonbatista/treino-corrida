@@ -33,6 +33,21 @@
       </section>
 
       <section id="week-summary" class="summary-card" aria-live="polite"></section>
+
+      <section class="summary-card" aria-label="Evolução dos treinos">
+        <h2>Evolução</h2>
+        <label for="evolution-metric">Métrica</label>
+        <select id="evolution-metric">
+          <option value="pace">Pace</option>
+          <option value="distance">Distância</option>
+          <option value="weeklyVolume">Volume semanal</option>
+        </select>
+        <div class="chart-wrap">
+          <canvas id="evolution-chart"></canvas>
+        </div>
+        <p id="evolution-empty" class="muted" hidden>Sem dados suficientes ainda.</p>
+      </section>
+
       <section id="week-trainings" class="week-trainings" aria-label="Treinos da semana"></section>
     </main>
 
@@ -89,6 +104,7 @@
       </article>
     </template>
 
+    <script src="./vendor/chart.umd.min.js"></script>
     <script src="app.js" defer></script>
   </body>
 </html>
