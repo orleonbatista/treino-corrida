@@ -316,13 +316,6 @@ function renderWeekTrainings() {
     card.querySelector('.training-title').textContent = `${training.title}`;
     card.querySelector('.training-description').textContent = training.description;
 
-    const done = bindField(card, '.field-done', 'change', (event) => {
-      state.data[key].done = event.target.checked;
-      debounceSave();
-      renderSummaries();
-    });
-    done.checked = Boolean(entry.done);
-
     const date = bindField(card, '.field-date', 'input', (event) => {
       state.data[key].date = event.target.value;
       debounceSave();
@@ -359,6 +352,14 @@ function renderWeekTrainings() {
     time.addEventListener('blur', persistNormalizedTime);
     time.addEventListener('change', persistNormalizedTime);
     time.value = normalizeTimeInput(entry.time || '');
+
+    const done = bindField(card, '.field-done', 'change', (event) => {
+      state.data[key].done = event.target.checked;
+      if (event.target.checked) persistNormalizedTime();
+      debounceSave();
+      renderSummaries();
+    });
+    done.checked = Boolean(entry.done);
 
     const bpm = bindField(card, '.field-bpm', 'input', (event) => {
       state.data[key].bpm = event.target.value;
@@ -493,6 +494,22 @@ function handleResetAll() {
   state.data = createInitialData();
   saveState();
   render();
+  refreshServiceWorkerCache();
+}
+
+function refreshServiceWorkerCache() {
+  if (!('serviceWorker' in navigator)) return;
+
+  navigator.serviceWorker.getRegistration().then((registration) => {
+    if (!registration) return;
+
+    registration.update().catch(() => {});
+
+    const worker = registration.active || registration.waiting || navigator.serviceWorker.controller;
+    if (!worker) return;
+
+    worker.postMessage({ type: 'REFRESH_CACHE' });
+  });
 }
 
 function setupEvents() {
