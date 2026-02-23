@@ -157,6 +157,24 @@ function parseTimeToSeconds(timeText) {
   return null;
 }
 
+function formatTimeFromDigits(input) {
+  const digits = String(input || '').replace(/\D/g, '').slice(0, 6);
+  if (!digits) return '';
+
+  if (digits.length <= 4) {
+    const padded = digits.padStart(4, '0');
+    const mm = Number(padded.slice(0, 2));
+    const ss = Number(padded.slice(2, 4));
+    return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+  }
+
+  const padded = digits.padStart(6, '0');
+  const hh = Number(padded.slice(0, 2));
+  const mm = Number(padded.slice(2, 4));
+  const ss = Number(padded.slice(4, 6));
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+}
+
 function formatSeconds(totalSeconds) {
   if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return '--:--';
   const safe = Math.round(totalSeconds);
@@ -171,9 +189,9 @@ function formatSeconds(totalSeconds) {
 
 function formatPace(seconds, km) {
   if (!seconds || !km || km <= 0) return '--:--/km';
-  const paceSec = seconds / km;
-  const paceMin = Math.floor(paceSec / 60);
-  const paceRemainSec = Math.round(paceSec % 60);
+  const paceTotalSeconds = Math.round(seconds / km);
+  const paceMin = Math.floor(paceTotalSeconds / 60);
+  const paceRemainSec = paceTotalSeconds % 60;
   return `${paceMin}:${String(paceRemainSec).padStart(2, '0')}/km`;
 }
 
@@ -281,12 +299,14 @@ function renderWeekTrainings() {
     km.value = entry.km || '';
 
     const time = bindField(card, '.field-time', 'input', (event) => {
-      state.data[key].time = event.target.value;
+      const formattedTime = formatTimeFromDigits(event.target.value);
+      event.target.value = formattedTime;
+      state.data[key].time = formattedTime;
       updatePace(card, key);
       debounceSave();
       renderSummaries();
     });
-    time.value = entry.time || '';
+    time.value = formatTimeFromDigits(entry.time || '');
 
     const bpm = bindField(card, '.field-bpm', 'input', (event) => {
       state.data[key].bpm = event.target.value;
