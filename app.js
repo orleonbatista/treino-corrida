@@ -348,8 +348,10 @@ function renderWeekTrainings() {
 
     const time = bindField(card, '.field-time', 'input', (event) => {
       const draft = sanitizeTimeDraft(event.target.value);
-      event.target.value = draft;
-      state.data[key].time = draft;
+      const shouldNormalizeNow = /^\d{4,6}$/.test(draft);
+      const nextValue = shouldNormalizeNow ? normalizeTimeInput(draft) : draft;
+      event.target.value = nextValue;
+      state.data[key].time = nextValue;
       updatePace(card, key);
       debounceSave();
       renderSummaries();
@@ -516,9 +518,12 @@ function setupEvents() {
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((error) => {
-      console.warn('Falha ao registrar SW', error);
-    });
+    navigator.serviceWorker
+      .register('./sw.js', { updateViaCache: 'none' })
+      .then((registration) => registration.update().catch(() => {}))
+      .catch((error) => {
+        console.warn('Falha ao registrar SW', error);
+      });
   });
 }
 
