@@ -1067,3 +1067,121 @@ function calcWeekStats(week) {
   });
   return { totalKm, completedTrainings };
 }
+
+// ============================================================
+// === VIEW: TRAINING CARD ====================================
+// ============================================================
+
+function renderTrainingCardView(container, params) {
+  const plan = getPlanById(params.planId);
+  if (!plan) { router.pop(); return; }
+  const week = plan.weeks[params.weekIdx];
+  if (!week) { router.pop(); return; }
+  const training = week.trainings.find((t) => t.id === params.trainingId);
+  if (!training) { router.pop(); return; }
+
+  renderViewHeader(container, `${training.label} · ${training.title}`, `Semana ${params.weekIdx + 1}`);
+
+  const descEl = document.createElement('p');
+  descEl.className = 'text-muted mt-8';
+  descEl.style.marginBottom = '14px';
+  descEl.textContent = training.description;
+  container.appendChild(descEl);
+
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  function currentEntry() {
+    const freshPlan = getPlanById(params.planId);
+    return freshPlan?.weeks[params.weekIdx]?.trainings.find((t) => t.id === params.trainingId)?.entry
+      || training.entry;
+  }
+
+  function save(field, value) {
+    updateTrainingEntry(params.planId, params.weekIdx, params.trainingId, field, value);
+    updatePaceDisplay();
+  }
+
+  function updatePaceDisplay() {
+    const e = currentEntry();
+    const paceInput = card.querySelector('#field-pace');
+    if (paceInput) paceInput.value = calcPaceFromEntry(e);
+  }
+
+  const entry = currentEntry();
+
+  card.innerHTML = `
+    <div class="check-row">
+      <input type="checkbox" id="field-done" ${entry.done ? 'checked' : ''} />
+      <label for="field-done">Concluído</label>
+    </div>
+    <div class="field-grid">
+      <label style="grid-column:1/-1;">
+        <span class="field-label">Data</span>
+        <input type="date" id="field-date" value="${escapeHtml(entry.date)}" />
+      </label>
+      <label>
+        <span class="field-label">Distância (km)</span>
+        <input type="number" id="field-km" min="0" step="0.01" inputmode="decimal" placeholder="0.00" value="${escapeHtml(entry.km)}" />
+      </label>
+      <label>
+        <span class="field-label">Tempo</span>
+        <input type="text" id="field-time" inputmode="numeric" placeholder="mm:ss" value="${escapeHtml(normalizeTimeInput(entry.time))}" />
+      </label>
+      <label>
+        <span class="field-label">BPM médio</span>
+        <input type="number" id="field-bpm" min="0" step="1" inputmode="numeric" placeholder="148" value="${escapeHtml(entry.bpm)}" />
+      </label>
+      <label>
+        <span class="field-label">Pace (calculado)</span>
+        <input type="text" id="field-pace" readonly value="${calcPaceFromEntry(entry)}" />
+      </label>
+    </div>
+    <div class="mt-8">
+      <label class="field-label" for="field-notes">Notas</label>
+      <textarea id="field-notes" rows="3" placeholder="Como foi o treino?">${escapeHtml(entry.notes)}</textarea>
+    </div>
+  `;
+  container.appendChild(card);
+
+  const doneInput = card.querySelector('#field-done');
+  const dateInput = card.querySelector('#field-date');
+  const kmInput = card.querySelector('#field-km');
+  const timeInput = card.querySelector('#field-time');
+  const bpmInput = card.querySelector('#field-bpm');
+  const notesInput = card.querySelector('#field-notes');
+
+  doneInput.addEventListener('change', (e) => {
+    save('done', e.target.checked);
+    if (e.target.checked) {
+      const normalized = normalizeTimeInput(timeInput.value);
+      timeInput.value = normalized;
+      save('time', normalized);
+    }
+  });
+
+  dateInput.addEventListener('input', (e) => debounceSave(() => save('date', e.target.value)));
+
+  kmInput.addEventListener('input', (e) => debounceSave(() => save('km', e.target.value)));
+
+  timeInput.addEventListener('input', (e) => {
+    const draft = sanitizeTimeDraft(e.target.value);
+    const shouldNormalize = /^\d{4,6}$/.test(draft);
+    const next = shouldNormalize ? normalizeTimeInput(draft) : draft;
+    e.target.value = next;
+    debounceSave(() => save('time', next));
+  });
+
+  const persistTime = () => {
+    const normalized = normalizeTimeInput(timeInput.value);
+    timeInput.value = normalized;
+    save('time', normalized);
+  };
+
+  timeInput.addEventListener('blur', persistTime);
+  timeInput.addEventListener('change', persistTime);
+
+  bpmInput.addEventListener('input', (e) => debounceSave(() => save('bpm', e.target.value)));
+
+  notesInput.addEventListener('input', (e) => debounceSave(() => save('notes', e.target.value)));
+}
