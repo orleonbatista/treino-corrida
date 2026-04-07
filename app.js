@@ -1185,3 +1185,76 @@ function renderTrainingCardView(container, params) {
 
   notesInput.addEventListener('input', (e) => debounceSave(() => save('notes', e.target.value)));
 }
+
+// ============================================================
+// === VIEW: LOGS LIST ========================================
+// ============================================================
+
+function renderLogsView(container) {
+  renderViewHeader(container, 'Treinos', 'Histórico de corridas');
+
+  const all = getAllRegisteredEntries();
+
+  if (all.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML = `
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">Nenhum treino registrado</div>
+      <div class="empty-desc">Registre treinos nos seus planos ou toque em <strong>+</strong> para adicionar uma corrida avulsa.</div>
+    `;
+    container.appendChild(empty);
+  } else {
+    let lastMonth = '';
+
+    all.forEach((entry) => {
+      const monthKey = entry.date ? entry.date.slice(0, 7) : '';
+      const monthLabel = formatMonthYear(entry.date);
+
+      if (monthKey && monthKey !== lastMonth) {
+        const sep = document.createElement('div');
+        sep.className = 'month-label';
+        sep.textContent = monthLabel;
+        container.appendChild(sep);
+        lastMonth = monthKey;
+      }
+
+      const km = Number(entry.km);
+      const sec = parseTimeToSeconds(entry.time);
+      const pace = km > 0 && sec > 0 ? formatPace(sec, km) : '--:--/km';
+
+      const item = document.createElement('div');
+      item.className = 'log-item';
+      item.innerHTML = `
+        <div class="log-item-left">
+          <div class="log-source">${escapeHtml(formatDateBR(entry.date))} · ${escapeHtml(entry.source)}</div>
+          <div class="log-title">${escapeHtml(entry.title)}</div>
+          <div class="log-stats">${km > 0 ? `${km.toFixed(2)} km` : ''}${entry.time ? ` · ${escapeHtml(entry.time)}` : ''}${entry.bpm ? ` · ${escapeHtml(entry.bpm)} BPM` : ''}</div>
+        </div>
+        <div class="log-pace">
+          <div class="log-pace-val">${escapeHtml(pace.replace('/km', ''))}</div>
+          <span class="log-pace-unit">/km</span>
+        </div>
+      `;
+
+      item.addEventListener('click', () => {
+        if (entry.sourceType === 'log') {
+          router.push('log-form', { logId: entry.id });
+        } else {
+          router.setTab('plans');
+          router.push('plan-detail', { planId: entry.planId, weekIdx: entry.weekIdx });
+          router.push('training-card', { planId: entry.planId, weekIdx: entry.weekIdx, trainingId: entry.trainingId });
+        }
+      });
+
+      container.appendChild(item);
+    });
+  }
+
+  const fab = document.createElement('button');
+  fab.className = 'fab';
+  fab.setAttribute('aria-label', 'Registrar corrida avulsa');
+  fab.textContent = '+';
+  fab.addEventListener('click', () => router.push('log-form', { logId: null }));
+  container.appendChild(fab);
+}
