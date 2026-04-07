@@ -704,6 +704,87 @@ function setupGlobalEvents() {
 }
 
 // ============================================================
+// === VIEW: PLANS LIST =======================================
+// ============================================================
+
+function renderPlansListView(container) {
+  const plans = loadPlans();
+
+  renderViewHeader(
+    container,
+    'Meus Planos',
+    `${plans.length} plano${plans.length !== 1 ? 's' : ''}`,
+    `<button class="btn-primary" id="new-plan-btn">+ Novo</button>`
+  );
+
+  container.querySelector('#new-plan-btn').addEventListener('click', () => {
+    router.push('template-picker');
+  });
+
+  if (plans.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML = `
+      <div class="empty-icon">🏃</div>
+      <div class="empty-title">Nenhum plano ainda</div>
+      <div class="empty-desc">Toque em <strong>+ Novo</strong> para criar seu primeiro plano de treino.</div>
+    `;
+    container.appendChild(empty);
+    return;
+  }
+
+  plans.forEach((plan) => {
+    const stats = calcPlanStats(plan);
+    const pct = stats.totalTrainings > 0 ? Math.round((stats.completedTrainings / stats.totalTrainings) * 100) : 0;
+    const isFinished = stats.completedTrainings === stats.totalTrainings && stats.totalTrainings > 0;
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.cursor = 'pointer';
+    card.innerHTML = `
+      <div class="card-header">
+        <div>
+          <div class="card-title">${escapeHtml(plan.name)}</div>
+          <div class="card-subtitle">${plan.weeks.length} semanas · criado em ${escapeHtml(plan.createdAt)}</div>
+        </div>
+        <span class="badge ${isFinished ? 'badge-green' : 'badge-cyan'}">
+          ${isFinished ? '✓ Concluído' : 'Ativo'}
+        </span>
+      </div>
+      <div class="progress-bar mt-8">
+        <div class="progress-fill" style="width:${pct}%"></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-val accent">${stats.totalKm.toFixed(1)}</div><div class="stat-key">km total</div></div>
+        <div class="stat"><div class="stat-val">${stats.completedTrainings}/${stats.totalTrainings}</div><div class="stat-key">treinos</div></div>
+        <div class="stat"><div class="stat-val">${stats.completedWeeks}/${plan.weeks.length}</div><div class="stat-key">semanas</div></div>
+      </div>
+    `;
+    card.addEventListener('click', () => router.push('plan-detail', { planId: plan.id, weekIdx: 0 }));
+    container.appendChild(card);
+  });
+}
+
+function calcPlanStats(plan) {
+  let totalKm = 0;
+  let completedTrainings = 0;
+  let completedWeeks = 0;
+  const totalTrainings = plan.weeks.reduce((acc, w) => acc + w.trainings.length, 0);
+
+  plan.weeks.forEach((week) => {
+    let weekDone = 0;
+    week.trainings.forEach((t) => {
+      const km = Number(t.entry.km);
+      if (!Number.isNaN(km) && km > 0) totalKm += km;
+      if (t.entry.done) { completedTrainings++; weekDone++; }
+    });
+    if (weekDone === week.trainings.length && week.trainings.length > 0) completedWeeks++;
+  });
+
+  return { totalKm, completedTrainings, totalTrainings, completedWeeks };
+}
+
+// ============================================================
 // === INIT ===================================================
 // ============================================================
 
