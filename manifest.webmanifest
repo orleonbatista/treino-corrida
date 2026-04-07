@@ -1,5 +1,5 @@
 {
-  "name": "Plano de Corrida 8 Semanas",
+  "name": "Treino Corrida",
   "short_name": "Treino Corrida",
   "description": "Acompanhe seu plano de corrida com métricas e progresso.",
   "start_url": "./index.html",
@@ -12,7 +12,13 @@
       "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }

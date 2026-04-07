@@ -808,8 +808,6 @@ function init() {
   registerServiceWorker();
 }
 
-init();
-
 // ============================================================
 // === VIEW: TEMPLATE PICKER ==================================
 // ============================================================
@@ -1377,7 +1375,6 @@ function renderLogFormView(container, params) {
 
   container.appendChild(actions);
 }
-}
 
 // ============================================================
 // === VIEW: EVOLUTION ========================================
@@ -1502,3 +1499,9 @@ function renderEvolutionView(container) {
   document.getElementById('evo-filter').addEventListener('change', updateChart);
   updateChart();
 }
+
+// ============================================================
+// === INIT ===================================================
+// ============================================================
+
+init();
