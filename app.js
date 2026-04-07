@@ -967,3 +967,103 @@ function renderPlanEditorView(container, params) {
   });
   container.appendChild(saveBtn);
 }
+
+// ============================================================
+// === VIEW: PLAN DETAIL ======================================
+// ============================================================
+
+function renderPlanDetailView(container, params) {
+  const plan = getPlanById(params.planId);
+  if (!plan) { router.pop(); return; }
+
+  let weekIdx = typeof params.weekIdx === 'number' ? params.weekIdx : 0;
+  if (weekIdx >= plan.weeks.length) weekIdx = 0;
+
+  function rerender() {
+    const entry = router.tabStacks[router.currentTab];
+    entry[entry.length - 1].params = { planId: plan.id, weekIdx };
+    container.innerHTML = '';
+    renderPlanDetailView(container, { planId: plan.id, weekIdx });
+  }
+
+  const week = plan.weeks[weekIdx];
+  const weekStats = calcWeekStats(week);
+
+  const weekNavHtml = `
+    <div class="week-nav">
+      <button class="week-nav-btn" id="prev-week" ${weekIdx === 0 ? 'disabled' : ''}>‹</button>
+      <span class="week-nav-label">S${weekIdx + 1}</span>
+      <button class="week-nav-btn" id="next-week" ${weekIdx === plan.weeks.length - 1 ? 'disabled' : ''}>›</button>
+    </div>
+  `;
+
+  renderViewHeader(container, plan.name, `Semana ${weekIdx + 1} de ${plan.weeks.length}`, weekNavHtml);
+
+  container.querySelector('#prev-week')?.addEventListener('click', () => { weekIdx--; rerender(); });
+  container.querySelector('#next-week')?.addEventListener('click', () => { weekIdx++; rerender(); });
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'btn-ghost';
+  editBtn.style.cssText = 'margin-bottom:12px;';
+  editBtn.textContent = '✏️ Editar plano';
+  editBtn.addEventListener('click', () => router.push('plan-editor', { planId: plan.id }));
+  container.appendChild(editBtn);
+
+  const summary = document.createElement('div');
+  summary.className = 'card';
+  summary.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div class="stat-val">${weekStats.completedTrainings}/${week.trainings.length}</div>
+        <div class="stat-key">treinos concluídos</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="stat-val accent">${weekStats.totalKm.toFixed(2)}</div>
+        <div class="stat-key">km esta semana</div>
+      </div>
+    </div>
+    <div class="progress-bar mt-8">
+      <div class="progress-fill" style="width:${week.trainings.length > 0 ? Math.round((weekStats.completedTrainings / week.trainings.length) * 100) : 0}%"></div>
+    </div>
+  `;
+  container.appendChild(summary);
+
+  const list = document.createElement('div');
+  list.className = 'card mt-8';
+
+  week.trainings.forEach((training) => {
+    const entry = training.entry;
+    const hasData = entry.km || entry.time || entry.bpm;
+    const statsText = hasData
+      ? [entry.km ? `${entry.km} km` : '', entry.time || '', calcPaceFromEntry(entry)].filter(Boolean).join(' · ')
+      : 'Pendente';
+
+    const item = document.createElement('div');
+    item.className = 'training-item';
+    item.innerHTML = `
+      <div class="training-item-left">
+        <div class="training-label">${escapeHtml(training.label)} · ${escapeHtml(training.title)}</div>
+        <div class="training-item-title">${escapeHtml(training.description)}</div>
+        <div class="training-item-stats">${escapeHtml(statsText)}</div>
+      </div>
+      <div class="done-circle ${entry.done ? 'done' : 'pending'}">${entry.done ? '✓' : ''}</div>
+    `;
+    item.addEventListener('click', () => {
+      router.push('training-card', { planId: plan.id, weekIdx, trainingId: training.id });
+    });
+    list.appendChild(item);
+  });
+
+  container.appendChild(list);
+}
+
+function calcWeekStats(week) {
+  let totalKm = 0;
+  let completedTrainings = 0;
+  week.trainings.forEach((t) => {
+    const km = Number(t.entry.km);
+    if (!Number.isNaN(km) && km > 0) totalKm += km;
+    if (t.entry.done) completedTrainings++;
+  });
+  return { totalKm, completedTrainings };
+}
