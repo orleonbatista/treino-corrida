@@ -578,3 +578,153 @@ function renderViewHeader(container, title, subtitle, rightHtml = '') {
     header.querySelector('#back-btn').addEventListener('click', () => router.pop());
   }
 }
+
+// ============================================================
+// === VIEW: CONFIG ===========================================
+// ============================================================
+
+function renderConfigView(container) {
+  renderViewHeader(container, 'Config', 'Dados e backup');
+
+  const section = document.createElement('div');
+  section.className = 'card';
+  section.innerHTML = `
+    <div class="config-item">
+      <div>
+        <div class="config-item-label">Exportar backup</div>
+        <div class="config-item-desc">Copia para clipboard e baixa arquivo JSON</div>
+      </div>
+      <button class="btn-primary" id="export-btn">Exportar</button>
+    </div>
+    <div class="config-item">
+      <div>
+        <div class="config-item-label">Importar backup</div>
+        <div class="config-item-desc">Restaurar dados a partir de arquivo JSON</div>
+      </div>
+      <button class="btn-ghost" id="import-btn">Importar</button>
+    </div>
+    <div class="config-item">
+      <div>
+        <div class="config-item-label">Zerar tudo</div>
+        <div class="config-item-desc">Remove todos os planos e registros</div>
+      </div>
+      <button class="btn-danger" id="reset-btn">Zerar</button>
+    </div>
+  `;
+  container.appendChild(section);
+
+  section.querySelector('#export-btn').addEventListener('click', handleExport);
+  section.querySelector('#import-btn').addEventListener('click', handleImportOpen);
+  section.querySelector('#reset-btn').addEventListener('click', handleResetAll);
+}
+
+function handleExport() {
+  const json = exportBackup();
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(json).catch(() => {});
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'treino-backup.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function handleImportOpen() {
+  const dialog = document.getElementById('import-dialog');
+  document.getElementById('import-text').value = '';
+  document.getElementById('import-file').value = '';
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else {
+    const input = window.prompt('Cole o JSON do backup:');
+    if (input) applyImport(input);
+  }
+}
+
+function applyImport(json) {
+  try {
+    importBackup(json);
+    alert('Backup importado com sucesso!');
+    renderCurrentView();
+    refreshServiceWorkerCache();
+  } catch (e) {
+    alert(`Erro ao importar: ${e.message}`);
+  }
+}
+
+function handleResetAll() {
+  if (!confirm('Tem certeza? Todos os planos e registros serão apagados.')) return;
+  clearAllData();
+  router.setTab('plans');
+  refreshServiceWorkerCache();
+}
+
+function refreshServiceWorkerCache() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.getRegistration().then((reg) => {
+    if (!reg) return;
+    reg.update().catch(() => {});
+    const worker = reg.active || reg.waiting || navigator.serviceWorker.controller;
+    if (worker) worker.postMessage({ type: 'REFRESH_CACHE' });
+  });
+}
+
+// ============================================================
+// === GLOBAL EVENTS ==========================================
+// ============================================================
+
+function setupGlobalEvents() {
+  document.getElementById('bottom-nav').addEventListener('click', (e) => {
+    const item = e.target.closest('.nav-item');
+    if (!item) return;
+    e.preventDefault();
+    router.setTab(item.dataset.tab);
+  });
+
+  document.getElementById('import-confirm').addEventListener('click', () => {
+    const textVal = document.getElementById('import-text').value.trim();
+    const dialog = document.getElementById('import-dialog');
+    if (textVal) {
+      applyImport(textVal);
+      dialog.close();
+      return;
+    }
+    const file = document.getElementById('import-file').files[0];
+    if (!file) { alert('Cole o JSON ou selecione um arquivo.'); return; }
+    const reader = new FileReader();
+    reader.onload = () => { applyImport(String(reader.result)); dialog.close(); };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('import-cancel').addEventListener('click', () => {
+    document.getElementById('import-dialog').close();
+  });
+
+  window.addEventListener('storage', (e) => {
+    if (e.key === PLANS_KEY || e.key === LOGS_KEY) renderCurrentView();
+  });
+}
+
+// ============================================================
+// === INIT ===================================================
+// ============================================================
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('./sw.js', { updateViaCache: 'none' })
+      .then((reg) => reg.update().catch(() => {}))
+      .catch((err) => console.warn('SW registration failed', err));
+  });
+}
+
+function init() {
+  setupGlobalEvents();
+  const hash = (location.hash || '#plans').replace('#', '');
+  const tab = TABS.includes(hash) ? hash : 'plans';
+  router.currentTab = tab;
+  updateBottomNavActive();
+  renderCurrentView();
+  registerServiceWorker();
+}
+
+init();
