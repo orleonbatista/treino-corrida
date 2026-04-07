@@ -1378,3 +1378,127 @@ function renderLogFormView(container, params) {
   container.appendChild(actions);
 }
 }
+
+// ============================================================
+// === VIEW: EVOLUTION ========================================
+// ============================================================
+
+function renderEvolutionView(container) {
+  renderViewHeader(container, 'Evolução', 'Gráficos de progresso');
+
+  const plans = loadPlans();
+
+  const controls = document.createElement('div');
+  controls.className = 'card';
+  controls.style.marginBottom = '12px';
+  controls.innerHTML = `
+    <div style="margin-bottom:10px;">
+      <label class="field-label" for="evo-metric">Métrica</label>
+      <select id="evo-metric">
+        <option value="pace">Pace (min/km)</option>
+        <option value="distance">Distância (km)</option>
+        <option value="weeklyVolume">Volume semanal</option>
+        <option value="bpm">BPM médio</option>
+      </select>
+    </div>
+    <div>
+      <label class="field-label" for="evo-filter">Plano</label>
+      <select id="evo-filter">
+        <option value="all">Todos</option>
+        ${plans.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('')}
+        <option value="logs">Somente avulsos</option>
+      </select>
+    </div>
+  `;
+  container.appendChild(controls);
+
+  const chartCard = document.createElement('div');
+  chartCard.className = 'card';
+  chartCard.innerHTML = `
+    <div class="chart-wrap"><canvas id="evo-chart"></canvas></div>
+    <p id="evo-empty" class="text-muted mt-8" style="text-align:center;display:none;">Sem dados suficientes ainda.</p>
+  `;
+  container.appendChild(chartCard);
+
+  function updateChart() {
+    const metric = document.getElementById('evo-metric').value;
+    const filterPlanId = document.getElementById('evo-filter').value;
+    const series = buildEvolutionSeries(metric, filterPlanId);
+    const canvas = document.getElementById('evo-chart');
+    const emptyMsg = document.getElementById('evo-empty');
+
+    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+    if (!series.labels.length) {
+      canvas.style.display = 'none';
+      emptyMsg.style.display = 'block';
+      return;
+    }
+
+    canvas.style.display = '';
+    emptyMsg.style.display = 'none';
+
+    if (typeof Chart === 'undefined') return;
+
+    chartInstance = new Chart(canvas, {
+      type: series.chartType,
+      data: {
+        labels: series.labels,
+        datasets: [{
+          label: series.datasetLabel,
+          data: series.values,
+          borderColor: '#22d3ee',
+          backgroundColor: series.chartType === 'bar' ? 'rgba(34,211,238,0.25)' : 'rgba(34,211,238,0.15)',
+          borderWidth: 2,
+          tension: 0.3,
+          pointRadius: 3,
+          pointBackgroundColor: '#22d3ee',
+          fill: false,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        color: '#94a3b8',
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: {
+            ticks: { color: '#64748b', font: { size: 11 } },
+            grid: { color: '#1e293b' },
+          },
+          y: {
+            title: { display: true, text: series.yLabel, color: '#64748b', font: { size: 11 } },
+            ticks: {
+              color: '#64748b',
+              font: { size: 11 },
+              callback: (val) => series.isPace ? formatPaceSeconds(Number(val)) : `${Number(val).toFixed(1)}`,
+            },
+            grid: { color: '#1e293b' },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            borderColor: '#263348',
+            borderWidth: 1,
+            titleColor: '#94a3b8',
+            bodyColor: '#f1f5f9',
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.raw;
+                return series.isPace
+                  ? `${series.datasetLabel}: ${formatPaceSeconds(Number(v))}`
+                  : `${series.datasetLabel}: ${Number(v).toFixed(2)}`;
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  document.getElementById('evo-metric').addEventListener('change', updateChart);
+  document.getElementById('evo-filter').addEventListener('change', updateChart);
+  updateChart();
+}
