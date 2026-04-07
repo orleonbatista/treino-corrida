@@ -3,106 +3,53 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#1d4ed8" />
+    <meta name="theme-color" content="#0f172a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Treino Corrida" />
-    <title>Plano de Corrida 8 Semanas</title>
+    <title>Treino Corrida</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="icon.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="app">
-      <header class="app-header">
-        <h1>Plano de Corrida (8 semanas)</h1>
-        <p>Acompanhe seus treinos A/B/C, mesmo offline.</p>
-      </header>
+    <div id="app">
+      <main id="view-container"></main>
 
-      <section class="actions" aria-label="Ações">
-        <button id="export-btn" type="button">Exportar</button>
-        <button id="import-btn" type="button">Importar</button>
-        <button id="reset-btn" type="button" class="danger">Zerar tudo</button>
-      </section>
-
-      <section id="overall-summary" class="summary-card" aria-live="polite"></section>
-
-      <section class="week-selector" aria-label="Selecionar semana">
-        <label for="week-select">Semana:</label>
-        <select id="week-select"></select>
-      </section>
-
-      <section id="week-summary" class="summary-card" aria-live="polite"></section>
-
-      <section class="summary-card" aria-label="Evolução dos treinos">
-        <h2>Evolução</h2>
-        <label for="evolution-metric">Métrica</label>
-        <select id="evolution-metric">
-          <option value="pace">Pace</option>
-          <option value="distance">Distância</option>
-          <option value="weeklyVolume">Volume semanal</option>
-        </select>
-        <div class="chart-wrap">
-          <canvas id="evolution-chart"></canvas>
-        </div>
-        <p id="evolution-empty" class="muted" hidden>Sem dados suficientes ainda.</p>
-      </section>
-
-      <section id="week-trainings" class="week-trainings" aria-label="Treinos da semana"></section>
-    </main>
+      <nav class="bottom-nav" id="bottom-nav" aria-label="Navegação principal">
+        <a href="#plans" class="nav-item" data-tab="plans" aria-label="Planos">
+          <span class="nav-icon" aria-hidden="true">🏠</span>
+          <span class="nav-label">Planos</span>
+        </a>
+        <a href="#logs" class="nav-item" data-tab="logs" aria-label="Treinos">
+          <span class="nav-icon" aria-hidden="true">📋</span>
+          <span class="nav-label">Treinos</span>
+        </a>
+        <a href="#evolution" class="nav-item" data-tab="evolution" aria-label="Evolução">
+          <span class="nav-icon" aria-hidden="true">📈</span>
+          <span class="nav-label">Evolução</span>
+        </a>
+        <a href="#config" class="nav-item" data-tab="config" aria-label="Config">
+          <span class="nav-icon" aria-hidden="true">⚙️</span>
+          <span class="nav-label">Config</span>
+        </a>
+      </nav>
+    </div>
 
     <dialog id="import-dialog">
       <form method="dialog" class="import-form">
         <h2>Importar backup</h2>
-        <p>Cole o JSON ou selecione um arquivo.</p>
-        <textarea id="import-text" rows="10" placeholder="{ ... }"></textarea>
+        <p class="dialog-subtitle">Cole o JSON ou selecione um arquivo.</p>
+        <label for="import-text">JSON do backup</label>
+        <textarea id="import-text" rows="8" placeholder='{ "version": 2, ... }'></textarea>
         <label for="import-file">Arquivo JSON</label>
         <input id="import-file" type="file" accept="application/json,.json" />
-        <menu>
-          <button value="cancel" type="button" id="import-cancel">Cancelar</button>
-          <button value="confirm" type="button" id="import-confirm">Importar</button>
-        </menu>
+        <div class="dialog-actions">
+          <button type="button" id="import-cancel" class="btn-ghost">Cancelar</button>
+          <button type="button" id="import-confirm" class="btn-primary">Importar</button>
+        </div>
       </form>
     </dialog>
-
-    <template id="training-card-template">
-      <article class="training-card">
-        <h3 class="training-title"></h3>
-        <p class="training-description"></p>
-        <label class="inline-field">
-          <input type="checkbox" class="field-done" />
-          Concluído
-        </label>
-
-        <div class="grid-fields">
-          <label>
-            Data
-            <input type="date" class="field-date" />
-          </label>
-          <label>
-            Distância (km)
-            <input type="number" class="field-km" min="0" step="0.01" inputmode="decimal" placeholder="Ex: 5.25" />
-          </label>
-          <label>
-            Tempo (mm:ss ou hh:mm:ss)
-            <input type="text" class="field-time" inputmode="numeric" placeholder="Ex: 32:45" />
-          </label>
-          <label>
-            BPM médio
-            <input type="number" class="field-bpm" min="0" step="1" inputmode="numeric" placeholder="Ex: 148" />
-          </label>
-          <label>
-            Pace (calculado)
-            <input type="text" class="field-pace" readonly placeholder="--:--/km" />
-          </label>
-        </div>
-
-        <label>
-          Notas
-          <textarea class="field-notes" rows="3" placeholder="Como foi o treino?"></textarea>
-        </label>
-      </article>
-    </template>
 
     <script src="./vendor/chart.umd.min.js"></script>
     <script src="app.js" defer></script>

@@ -1,18 +1,24 @@
 {
-  "name": "Plano de Corrida 8 Semanas",
+  "name": "Treino Corrida",
   "short_name": "Treino Corrida",
   "description": "Acompanhe seu plano de corrida com métricas e progresso.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#1d4ed8",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "icons": [
     {
       "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }
