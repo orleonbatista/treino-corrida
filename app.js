@@ -809,3 +809,161 @@ function init() {
 }
 
 init();
+
+// ============================================================
+// === VIEW: TEMPLATE PICKER ==================================
+// ============================================================
+
+function renderTemplatePickerView(container) {
+  renderViewHeader(container, 'Novo Plano', 'Escolha um ponto de partida');
+
+  const grid = document.createElement('div');
+  grid.className = 'template-grid';
+
+  TEMPLATES.forEach((tpl) => {
+    const card = document.createElement('div');
+    card.className = 'template-card';
+    card.innerHTML = `
+      <div class="template-name">${escapeHtml(tpl.name)}</div>
+      <div class="template-desc">${escapeHtml(tpl.description)}</div>
+      <div class="template-meta">
+        <span class="badge badge-cyan">${escapeHtml(tpl.duration)}</span>
+        ${tpl.trainingsPerWeek > 0 ? `<span class="badge badge-muted">${tpl.trainingsPerWeek}× /semana</span>` : '<span class="badge badge-muted">Livre</span>'}
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      router.push('plan-editor', { templateId: tpl.id });
+    });
+    grid.appendChild(card);
+  });
+
+  container.appendChild(grid);
+}
+
+// ============================================================
+// === VIEW: PLAN EDITOR ======================================
+// ============================================================
+
+function renderPlanEditorView(container, params) {
+  const isEdit = Boolean(params.planId);
+  let plan;
+
+  if (isEdit) {
+    plan = getPlanById(params.planId);
+    if (!plan) { router.pop(); return; }
+    plan = JSON.parse(JSON.stringify(plan));
+  } else {
+    const tpl = TEMPLATES.find((t) => t.id === params.templateId) || TEMPLATES[3];
+    plan = createPlanFromTemplate(tpl, tpl.id === 'custom' ? '' : tpl.name);
+  }
+
+  renderViewHeader(container, isEdit ? 'Editar Plano' : 'Criar Plano', '');
+
+  const nameWrap = document.createElement('div');
+  nameWrap.innerHTML = `
+    <label class="field-label">Nome do plano</label>
+    <input type="text" id="plan-name" placeholder="Ex: Minha corrida 10K" value="${escapeHtml(plan.name)}" />
+  `;
+  container.appendChild(nameWrap);
+
+  const weeksContainer = document.createElement('div');
+  weeksContainer.id = 'weeks-container';
+  weeksContainer.style.marginTop = '14px';
+  container.appendChild(weeksContainer);
+
+  function renderWeeks() {
+    weeksContainer.innerHTML = '';
+    plan.weeks.forEach((week, wi) => {
+      const sec = document.createElement('div');
+      sec.className = 'week-section';
+      sec.innerHTML = `
+        <div class="week-section-header">
+          <span class="week-section-title">Semana ${wi + 1}</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-icon add-training-btn" data-week="${wi}" title="Adicionar treino">+</button>
+            ${plan.weeks.length > 1 ? `<button class="btn-icon remove-week-btn" data-week="${wi}" title="Remover semana" style="color:var(--danger)">×</button>` : ''}
+          </div>
+        </div>
+      `;
+
+      week.trainings.forEach((t, ti) => {
+        const row = document.createElement('div');
+        row.className = 'training-editor-row';
+        row.innerHTML = `
+          <input type="text" class="training-label-input" value="${escapeHtml(t.label)}" placeholder="A" data-week="${wi}" data-training="${ti}" data-field="label" />
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+            <input type="text" value="${escapeHtml(t.title)}" placeholder="Título (ex: Base)" data-week="${wi}" data-training="${ti}" data-field="title" />
+            <input type="text" value="${escapeHtml(t.description)}" placeholder="Descrição do treino" data-week="${wi}" data-training="${ti}" data-field="description" />
+          </div>
+          ${week.trainings.length > 1 ? `<button class="btn-icon remove-training-btn" data-week="${wi}" data-training="${ti}" style="color:var(--danger);margin-top:2px;">×</button>` : ''}
+        `;
+        sec.appendChild(row);
+      });
+
+      weeksContainer.appendChild(sec);
+    });
+
+    weeksContainer.querySelectorAll('input[data-field]').forEach((input) => {
+      input.addEventListener('input', (e) => {
+        const wi = Number(e.target.dataset.week);
+        const ti = Number(e.target.dataset.training);
+        const field = e.target.dataset.field;
+        plan.weeks[wi].trainings[ti][field] = e.target.value;
+      });
+    });
+
+    weeksContainer.querySelectorAll('.add-training-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const wi = Number(btn.dataset.week);
+        plan.weeks[wi].trainings.push({ id: generateId(), label: '', title: '', description: '', entry: { done: false, date: '', km: '', time: '', bpm: '', notes: '' } });
+        renderWeeks();
+      });
+    });
+
+    weeksContainer.querySelectorAll('.remove-training-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const wi = Number(btn.dataset.week);
+        const ti = Number(btn.dataset.training);
+        plan.weeks[wi].trainings.splice(ti, 1);
+        renderWeeks();
+      });
+    });
+
+    weeksContainer.querySelectorAll('.remove-week-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const wi = Number(btn.dataset.week);
+        plan.weeks.splice(wi, 1);
+        plan.weeks.forEach((w, i) => { w.week = i + 1; });
+        renderWeeks();
+      });
+    });
+  }
+
+  renderWeeks();
+
+  const addWeekBtn = document.createElement('button');
+  addWeekBtn.className = 'btn-ghost full-width mt-8';
+  addWeekBtn.textContent = '+ Adicionar semana';
+  addWeekBtn.addEventListener('click', () => {
+    const weekNum = plan.weeks.length + 1;
+    plan.weeks.push({
+      week: weekNum,
+      trainings: [{ id: generateId(), label: 'A', title: '', description: '', entry: { done: false, date: '', km: '', time: '', bpm: '', notes: '' } }],
+    });
+    renderWeeks();
+  });
+  container.appendChild(addWeekBtn);
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn-primary full-width mt-12';
+  saveBtn.style.marginBottom = '20px';
+  saveBtn.textContent = isEdit ? 'Salvar alterações' : 'Criar plano';
+  saveBtn.addEventListener('click', () => {
+    plan.name = document.getElementById('plan-name').value.trim();
+    if (!plan.name) { alert('Informe o nome do plano.'); return; }
+    savePlan(plan);
+    router.tabStacks.plans = [{ view: 'plans-list', params: {} }];
+    renderCurrentView();
+  });
+  container.appendChild(saveBtn);
+}
