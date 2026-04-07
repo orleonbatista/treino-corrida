@@ -1,13 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Treino Corrida">
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#1d4ed8"/>
-      <stop offset="100%" stop-color="#0f172a"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0a0f1e"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
-  <circle cx="180" cy="170" r="42" fill="#fff" opacity="0.95"/>
-  <path d="M179 212l74 42 34 74-34 16-26-53-47-28-43 55-29-23 55-83z" fill="#fff"/>
-  <path d="M293 162l68 21-11 34-68-22z" fill="#93c5fd"/>
-  <text x="256" y="458" text-anchor="middle" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="46" fill="#dbeafe">8 SEM</text>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+
+  <!-- Subtle radial glow behind figure -->
+  <ellipse cx="268" cy="240" rx="175" ry="200" fill="url(#glow)"/>
+
+  <!-- Speed lines (trailing left) -->
+  <g stroke="#22d3ee" stroke-linecap="round" fill="none">
+    <line x1="44" y1="192" x2="136" y2="192" stroke-width="6" stroke-opacity="0.55"/>
+    <line x1="28" y1="226" x2="136" y2="226" stroke-width="4.5" stroke-opacity="0.38"/>
+    <line x1="50" y1="258" x2="136" y2="258" stroke-width="3" stroke-opacity="0.22"/>
+  </g>
+
+  <!-- Ground line -->
+  <line x1="108" y1="408" x2="430" y2="408" stroke="#22d3ee" stroke-width="3" stroke-linecap="round" stroke-opacity="0.2"/>
+
+  <!-- Runner — head -->
+  <circle cx="252" cy="106" r="40" fill="#22d3ee"/>
+
+  <!-- Runner — body (thick strokes, rounded caps) -->
+  <g fill="none" stroke="#22d3ee" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Torso: forward lean to the right -->
+    <path d="M250,146 C254,192 268,242 282,295" stroke-width="28"/>
+    <!-- Right arm forward (extends right and forward) -->
+    <path d="M262,192 C290,220 320,242 348,260" stroke-width="24"/>
+    <!-- Left arm back (extends left) -->
+    <path d="M256,188 C228,214 196,230 164,242" stroke-width="24"/>
+    <!-- Right leg front (leading stride, down-right) -->
+    <path d="M282,295 C300,336 320,366 334,402" stroke-width="26"/>
+    <!-- Left leg back (kicked up behind: thigh goes back, calf curls up) -->
+    <path d="M282,295 C265,338 250,368 248,388 C246,404 260,410 272,398 C285,386 295,365 302,346" stroke-width="26"/>
+  </g>
 </svg>
