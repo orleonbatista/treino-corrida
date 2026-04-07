@@ -1258,3 +1258,123 @@ function renderLogsView(container) {
   fab.addEventListener('click', () => router.push('log-form', { logId: null }));
   container.appendChild(fab);
 }
+
+// ============================================================
+// === VIEW: LOG FORM =========================================
+// ============================================================
+
+function renderLogFormView(container, params) {
+  const isEdit = Boolean(params.logId);
+  const log = isEdit ? getLogById(params.logId) : null;
+
+  renderViewHeader(container, isEdit ? 'Editar Corrida' : 'Nova Corrida', 'Treino avulso');
+
+  const form = document.createElement('div');
+  form.className = 'card';
+
+  const initialTime = log ? normalizeTimeInput(log.time || '') : '';
+
+  form.innerHTML = `
+    <div class="field-group">
+      <div>
+        <label class="field-label" for="log-title">Título</label>
+        <input type="text" id="log-title" placeholder="Ex: Corrida matinal" value="${escapeHtml(log?.title || '')}" />
+      </div>
+      <div>
+        <label class="field-label" for="log-date">Data</label>
+        <input type="date" id="log-date" value="${escapeHtml(log?.date || '')}" />
+      </div>
+    </div>
+    <div class="field-grid mt-8">
+      <div>
+        <label class="field-label" for="log-km">Distância (km)</label>
+        <input type="number" id="log-km" min="0" step="0.01" inputmode="decimal" placeholder="0.00" value="${escapeHtml(log?.km || '')}" />
+      </div>
+      <div>
+        <label class="field-label" for="log-time">Tempo</label>
+        <input type="text" id="log-time" inputmode="numeric" placeholder="mm:ss" value="${escapeHtml(initialTime)}" />
+      </div>
+      <div>
+        <label class="field-label" for="log-bpm">BPM médio</label>
+        <input type="number" id="log-bpm" min="0" step="1" inputmode="numeric" placeholder="148" value="${escapeHtml(log?.bpm || '')}" />
+      </div>
+      <div>
+        <label class="field-label" for="log-pace">Pace (calculado)</label>
+        <input type="text" id="log-pace" readonly placeholder="--:--/km" />
+      </div>
+    </div>
+    <div class="mt-8">
+      <label class="field-label" for="log-notes">Notas</label>
+      <textarea id="log-notes" rows="3" placeholder="Como foi?">${escapeHtml(log?.notes || '')}</textarea>
+    </div>
+  `;
+  container.appendChild(form);
+
+  const kmInput = form.querySelector('#log-km');
+  const timeInput = form.querySelector('#log-time');
+  const paceInput = form.querySelector('#log-pace');
+
+  function updatePace() {
+    paceInput.value = calcPaceFromEntry({ km: kmInput.value, time: timeInput.value });
+  }
+
+  updatePace();
+
+  kmInput.addEventListener('input', updatePace);
+
+  timeInput.addEventListener('input', (e) => {
+    const draft = sanitizeTimeDraft(e.target.value);
+    const shouldNormalize = /^\d{4,6}$/.test(draft);
+    e.target.value = shouldNormalize ? normalizeTimeInput(draft) : draft;
+    updatePace();
+  });
+
+  const persistTime = () => {
+    const normalized = normalizeTimeInput(timeInput.value);
+    timeInput.value = normalized;
+    updatePace();
+  };
+
+  timeInput.addEventListener('blur', persistTime);
+  timeInput.addEventListener('change', persistTime);
+
+  const actions = document.createElement('div');
+  actions.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:14px;';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn-primary full-width';
+  saveBtn.textContent = isEdit ? 'Salvar alterações' : 'Registrar corrida';
+  saveBtn.addEventListener('click', () => {
+    const title = form.querySelector('#log-title').value.trim();
+    const date = form.querySelector('#log-date').value;
+    if (!date) { alert('Informe a data da corrida.'); return; }
+
+    const updatedLog = {
+      id: isEdit ? params.logId : generateId(),
+      title: title || 'Corrida avulsa',
+      date,
+      km: kmInput.value,
+      time: normalizeTimeInput(timeInput.value),
+      bpm: form.querySelector('#log-bpm').value,
+      notes: form.querySelector('#log-notes').value,
+    };
+    saveLog(updatedLog);
+    router.pop();
+  });
+  actions.appendChild(saveBtn);
+
+  if (isEdit) {
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn-danger full-width';
+    deleteBtn.textContent = 'Excluir corrida';
+    deleteBtn.addEventListener('click', () => {
+      if (!confirm('Excluir esta corrida?')) return;
+      deleteLog(params.logId);
+      router.pop();
+    });
+    actions.appendChild(deleteBtn);
+  }
+
+  container.appendChild(actions);
+}
+}
